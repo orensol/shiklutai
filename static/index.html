@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Telegram Video Language Pipeline</title>
+    <style>
+      :root {
+        --bg: #f3f5f7;
+        --panel: #ffffff;
+        --text: #1c1f23;
+        --muted: #5f6773;
+        --accent: #1f6feb;
+        --border: #d9dee5;
+      }
+      body {
+        margin: 0;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at 10% 10%, #e7f0ff, var(--bg));
+        color: var(--text);
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 1.6rem;
+      }
+      .hint {
+        margin: 0 0 16px;
+        color: var(--muted);
+      }
+      input,
+      button,
+      textarea {
+        font: inherit;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+      }
+      input {
+        flex: 1;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+      }
+      button {
+        border: 0;
+        background: var(--accent);
+        color: white;
+        border-radius: 10px;
+        padding: 12px 16px;
+        cursor: pointer;
+      }
+      .status {
+        margin: 12px 0;
+        color: var(--muted);
+      }
+      .results-layout {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .content-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+      .box {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px;
+        background: #fff;
+      }
+      .box h3 {
+        margin-top: 0;
+      }
+      video {
+        width: 100%;
+        max-height: 70vh;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #000;
+        object-fit: contain;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0;
+      }
+      @media (min-width: 900px) {
+        .results-layout {
+          grid-template-columns: minmax(0, 1fr) 360px;
+          align-items: start;
+        }
+        .content-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+        .full {
+          grid-column: 1 / -1;
+        }
+        .video-box {
+          position: sticky;
+          top: 16px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="card">
+        <h1>Telegram Video → Transcript, Translation, Summary</h1>
+        <p class="hint">Paste a Telegram video URL (e.g. a public <code>t.me/...</code> link).</p>
+
+        <div class="row">
+          <input id="url" value="https://t.me/eretzh/27602" />
+          <button id="run">Process</button>
+        </div>
+
+        <div class="status" id="status">Idle</div>
+
+        <div class="results-layout" id="results" hidden>
+          <div class="content-grid">
+            <div class="box">
+              <h3>Detected Language</h3>
+              <pre id="lang"></pre>
+            </div>
+            <div class="box">
+              <h3>English Summary</h3>
+              <pre id="summary"></pre>
+            </div>
+            <div class="box full">
+              <h3>Original Transcript</h3>
+              <pre id="transcript"></pre>
+            </div>
+            <div class="box full">
+              <h3>English Translation</h3>
+              <pre id="translation"></pre>
+            </div>
+          </div>
+
+          <div class="box video-box">
+            <h3>Video Preview</h3>
+            <video id="videoPreview" controls preload="metadata"></video>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const statusEl = document.getElementById("status");
+      const resultsEl = document.getElementById("results");
+
+      document.getElementById("run").addEventListener("click", async () => {
+        const url = document.getElementById("url").value.trim();
+        if (!url) return;
+
+        statusEl.textContent = "Downloading/transcribing... this may take 30-120s.";
+        resultsEl.hidden = true;
+
+        try {
+          const res = await fetch("/process", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+
+          const body = await res.json();
+          if (!res.ok) {
+            throw new Error(body.detail || "Processing failed");
+          }
+
+          const videoEl = document.getElementById("videoPreview");
+          videoEl.src = body.video_url;
+          videoEl.load();
+          document.getElementById("lang").textContent = body.detected_language;
+          document.getElementById("summary").textContent = body.summary_en;
+          document.getElementById("transcript").textContent = body.transcript_original;
+          document.getElementById("translation").textContent = body.translation_en;
+          resultsEl.hidden = false;
+          statusEl.textContent = "Done";
+        } catch (err) {
+          statusEl.textContent = `Error: ${err.message}`;
+        }
+      });
+    </script>
+  </body>
+</html>

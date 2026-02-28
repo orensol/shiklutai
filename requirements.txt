@@ -1,0 +1,7 @@
+fastapi==0.115.8
+uvicorn==0.34.0
+openai==1.65.4
+yt-dlp==2025.2.19
+langdetect==1.0.9
+python-multipart==0.0.20
+python-dotenv==1.0.1
